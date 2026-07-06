@@ -1,0 +1,44 @@
+name: Android CI Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # Use an Unreal Engine Docker image (Requires Epic Games GitHub linking for actual use)
+    # container: 
+    #   image: ghcr.io/epicgames/unreal-engine:dev-5.8
+    #   credentials:
+    #     username: ${{ github.actor }}
+    #     password: ${{ secrets.GHCR_PAT }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Generate Offline Assets
+      run: |
+        python3 scripts/generate_greybox_meshes.py
+        python3 scripts/generate_audio_placeholders.py
+        python3 scripts/generate_palette.py
+
+    - name: Run Headless Tests & Build (Mocked for CI)
+      run: |
+        echo "In a true UE environment, the following command would execute:"
+        echo "./build_headless.sh"
+        # ./build_headless.sh
+
+    - name: Validate Levels with DLX Solver
+      run: |
+        python3 scripts/dlx_solver.py
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Homeward-Android-APK
+        path: Saved/StagedBuilds/Android_ASTC/*.apk
+        if-no-files-found: ignore
