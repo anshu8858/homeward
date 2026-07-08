@@ -23,8 +23,8 @@ BUILD_COMMAND="/home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCoo
   -archivedirectory=\"/project/Saved/StagedBuilds\""
 
 # Pre-create build directories and ensure they are writable by the container's default non-root user (ue4)
-mkdir -p Saved-Intermediate-Binaries
-chmod 777 Saved-Intermediate-Binaries
+mkdir -p Saved Intermediate Binaries
+chmod 777 Saved Intermediate Binaries
 
 # Run the docker container, mounting the local project into /project
 docker run --rm -it \
