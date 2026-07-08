@@ -24,7 +24,9 @@ BUILD_COMMAND="/home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCoo
 
 # Run the docker container, mounting the local project into /project
 docker run --rm -it \
+  --user root \
   -v "${PROJECT_DIR}:/project" \
   -w "/project" \
   "${UE_IMAGE}" \
   bash -c "${BUILD_COMMAND}"
+
