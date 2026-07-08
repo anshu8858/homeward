@@ -1,7 +1,7 @@
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "GridModel.h"
-#include "Data/PieceDef.h"
+#include "../Data/PieceDef.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGridModelBasicTest, "Homeward.Logic.GridModel.BasicPlacement", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 
