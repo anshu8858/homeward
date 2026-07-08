@@ -18,7 +18,7 @@ echo "Note: You must have run 'docker login ghcr.io' with an Epic Games linked G
 # The command to execute inside the Unreal Engine container
 BUILD_COMMAND="/home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCookRun \
   -project=\"/project/Homeward.uproject\" \
-  -noP4 -platform=Android -clientconfig=Shipping \
+  -noP4 -platform=Linux -clientconfig=Shipping \
   -serverconfig=Shipping -cook -allmaps -build -stage -pak -archive \
   -archivedirectory=\"/project/Saved/StagedBuilds\""
 
