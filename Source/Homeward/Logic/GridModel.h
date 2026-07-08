@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Data/PieceDef.h"
-#include "Data/LevelDef.h"
+#include "../Data/PieceDef.h"
+#include "../Data/LevelDef.h"
 
 // Represents a placed piece in the grid
 struct FPlacedPiece
