@@ -3,7 +3,7 @@
 #include "GridModel.h"
 #include "../Data/PieceDef.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGridModelBasicTest, "Homeward.Logic.GridModel.BasicPlacement", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGridModelBasicTest, "Homeward.Logic.GridModel.BasicPlacement", EAutomationTestFlags::EditorContext | EAutomationTestFlags::SmokeFilter)
 
 bool FGridModelBasicTest::RunTest(const FString& Parameters)
 {
@@ -32,7 +32,7 @@ bool FGridModelBasicTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGridModelRotationTest, "Homeward.Logic.GridModel.Rotation", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGridModelRotationTest, "Homeward.Logic.GridModel.Rotation", EAutomationTestFlags::EditorContext | EAutomationTestFlags::SmokeFilter)
 
 bool FGridModelRotationTest::RunTest(const FString& Parameters)
 {
