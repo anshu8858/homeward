@@ -20,11 +20,11 @@ BUILD_COMMAND="/home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCoo
   -project=\"/project/Homeward.uproject\" \
   -noP4 -platform=Linux -clientconfig=Shipping \
   -serverconfig=Shipping -cook -allmaps -build -stage -pak -archive \
-  -archivedirectory=\"/project/Saved/StagedBuilds\""
+  -archivedirectory=\"/project/ArchivedBuilds\""
 
 # Pre-create build directories and ensure they are writable by the container's default non-root user (ue4)
-mkdir -p Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers
-chmod -R 777 Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers
+mkdir -p Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
+chmod -R 777 Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 
 # Run the docker container, mounting the local project into /project
 docker run --rm -it \
