@@ -65,3 +65,23 @@ https://SERVER_IP:8444
 - **Port number.** `docker-compose.yml` maps 8444, matching what KasmVNC printed when this was last run -- but that's KasmVNC's own default, not something pinned by this project's config, so re-check the "Paste this url" line in your own logs rather than trusting 8444 blindly.
 - **Don't add `startxfce4` back into `start.sh`.** `-select-de xfce` already makes vncserver's generated `~/.vnc/xstartup` launch `xfce4-session` itself; adding a second launcher races two sessions for window-manager ownership and intermittently fails with `Another Window Manager (unknown) is already running` / xfwm4 refusing to start. Found this by actually running the stack -- see git history on `start.sh`.
 - If `UnrealEditor` doesn't appear after a minute, open a terminal from the XFCE desktop and launch it manually: `/home/ue4/UnrealEngine/Engine/Binaries/Linux/UnrealEditor /workspace/Homeward.uproject`.
+
+## If the Editor crashes on startup with a Vulkan/RHI error
+
+Symptom: `UnrealEditor` loads plugins/config for a while then dies with a `VulkanRHI::VerifyVulkanResult` crash (signal 11), or `vulkaninfo`/`glxinfo` inside the container show `ERROR_INCOMPATIBLE_DRIVER` / `llvmpipe` (software rendering) instead of your real GPU. This means the container never got real GPU rendering access -- the Editor was trying to initialize Vulkan against a software-only display.
+
+1. **Confirm the host actually has GL/Vulkan userspace libraries**, not just the compute driver (`nvidia-smi` working is NOT enough -- that only proves the compute/NVML driver is there; GLX/EGL/Vulkan are separate):
+   ```bash
+   ls -la /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0 /usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.0
+   dpkg -l | grep -i nvidia-headless   # a "headless" driver metapackage deliberately excludes these
+   ```
+   If missing, install the matching `libnvidia-gl-<version>[-server]` package for your driver's exact version series (e.g. `libnvidia-gl-570-server` for driver `570.x`) and restart Docker's GPU containers.
+
+2. **Confirm the toolkit is actually mounting them into a container**, in isolation from this project's `docker-compose.yml`:
+   ```bash
+   docker run --rm --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all ghcr.io/epicgames/unreal-engine:dev-5.8 \
+     bash -c "ls -la /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0"
+   ```
+   If this works but `docker compose up` still doesn't, your `docker compose` binary may be the legacy v1 (Python) implementation, which doesn't support the `deploy.resources.reservations.devices` GPU syntax outside Swarm mode (`docker compose version` -- v1 shows as `docker-compose version 1.x`, the modern plugin as `Docker Compose version v2.x`). If so, either upgrade to the Compose v2 plugin, or run this stack with plain `docker run --gpus all ...` instead of `docker compose up` until you do.
+
+3. If both of the above check out but it still fails, it may be a **host-level policy restriction** on managed/shared GPU cloud instances (some providers lock containers to compute-only capabilities for isolation) -- check `/etc/nvidia-container-runtime/config.toml` for a `supported-driver-capabilities` override, and if present, that's a provider-side setting, not something fixable from this repo.

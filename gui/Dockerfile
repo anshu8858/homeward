@@ -11,7 +11,11 @@ FROM ${UE_IMAGE}
 USER root
 
 # XFCE for a lightweight desktop; curl/wget/ca-certificates to fetch the
-# KasmVNC package matching this image's actual distro (not guessed).
+# KasmVNC package matching this image's actual distro (not guessed);
+# vulkan-tools/mesa-utils so `vulkaninfo`/`glxinfo` are available for
+# diagnosing GPU/rendering issues without a rebuild-then-manual-install
+# round trip (this is exactly how the Vulkan/RHI crash on this stack
+# actually got diagnosed).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xfce4 \
     xfce4-terminal \
@@ -19,6 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     ca-certificates \
+    vulkan-tools \
+    mesa-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # KasmVNC ships one .deb per distro codename (jammy/focal/bookworm/etc),

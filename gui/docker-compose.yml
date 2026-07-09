@@ -6,7 +6,13 @@ services:
         UE_IMAGE: ghcr.io/epicgames/unreal-engine:dev-5.8
     image: homeward-gui:dev-5.8
 
-    runtime: nvidia
+    # GPU access via ONE mechanism only (the `deploy.resources.reservations`
+    # block below) -- previously this also set `runtime: nvidia`
+    # simultaneously, which is redundant with the modern device-reservation
+    # syntax and a plausible cause of nvidia-container-toolkit negotiating
+    # an inconsistent capability set (confirmed symptom: libGLX_nvidia.so.0
+    # exists on the host but wasn't being mounted into the container even
+    # with NVIDIA_DRIVER_CAPABILITIES=all set).
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
