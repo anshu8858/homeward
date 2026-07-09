@@ -2,6 +2,9 @@ Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
+ArchivedBuilds/
+Build/
+Saved-Intermediate-Binaries/
 .vscode/
 .vs/
 *.VC.db

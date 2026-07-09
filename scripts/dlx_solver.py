@@ -120,27 +120,62 @@ def rotate_cells_yaw(cells, rotations):
     return rotated
 
 def generate_matrix_for_level(grid_size, pieces):
+    """pieces: list of dicts with keys:
+         cells: list of (x, y, z) local cell offsets. z should be 0 for
+                every cell -- Homeward's authored pieces are single-layer;
+                a Tall piece's second-layer reservation is added
+                automatically below.
+         is_heavy / is_fragile / is_tall: optional bool flags (default
+                False). Placement candidates are filtered by these exactly
+                the way FGridModel::CanPlacePiece filters them at runtime
+                (GridModel.cpp): Heavy only on layer 0, Fragile only on the
+                top layer, Tall reserves the same footprint one layer up.
+                A level this solver calls solvable is therefore guaranteed
+                placeable in-engine, one layer at a time -- not just
+                tileable in some arbitrary layer order, which is what this
+                function used to (silently) check instead.
+    """
     W, H, D = grid_size
     headers = [f"Cell_{x}_{y}_{z}" for z in range(D) for y in range(H) for x in range(W)]
     headers += [f"Piece_{i}" for i in range(len(pieces))]
-    
+
     matrix_rows = []
-    for piece_idx, piece_cells in enumerate(pieces):
+    for piece_idx, piece in enumerate(pieces):
+        own_cells = piece["cells"]
+        is_heavy = piece.get("is_heavy", False)
+        is_fragile = piece.get("is_fragile", False)
+        is_tall = piece.get("is_tall", False)
+
         for rot in range(4):
-            rotated = rotate_cells_yaw(piece_cells, rot)
-            min_x = min(c[0] for c in rotated)
-            max_x = max(c[0] for c in rotated)
-            min_y = min(c[1] for c in rotated)
-            max_y = max(c[1] for c in rotated)
-            min_z = min(c[2] for c in rotated)
-            max_z = max(c[2] for c in rotated)
-            
+            rotated_own = rotate_cells_yaw(own_cells, rot)
+            # Effective cells: own cells plus, for Tall pieces, the same
+            # footprint reserved one layer up -- mirrors
+            # FGridModel::GetEffectiveCells so occupancy matches the C++
+            # exactly.
+            effective = list(rotated_own)
+            if is_tall:
+                effective += [(x, y, z + 1) for x, y, z in rotated_own]
+
+            min_x = min(c[0] for c in effective)
+            max_x = max(c[0] for c in effective)
+            min_y = min(c[1] for c in effective)
+            max_y = max(c[1] for c in effective)
+            min_z = min(c[2] for c in effective)
+            max_z = max(c[2] for c in effective)
+
             for tz in range(-min_z, D - max_z):
+                # Own cells are always authored at local z=0, so tz is
+                # exactly the active layer this placement would occupy.
+                if is_heavy and tz != 0:
+                    continue
+                if is_fragile and tz != D - 1:
+                    continue
+
                 for ty in range(-min_y, H - max_y):
                     for tx in range(-min_x, W - max_x):
                         cols = []
                         valid = True
-                        for cx, cy, cz in rotated:
+                        for cx, cy, cz in effective:
                             nx, ny, nz = cx + tx, cy + ty, cz + tz
                             if 0 <= nx < W and 0 <= ny < H and 0 <= nz < D:
                                 cell_idx = nz * (W * H) + ny * W + nx
@@ -152,7 +187,7 @@ def generate_matrix_for_level(grid_size, pieces):
                             cols.append(W * H * D + piece_idx)
                             row_id = f"Piece{piece_idx}_R{rot}_T({tx},{ty},{tz})"
                             matrix_rows.append((row_id, cols))
-                            
+
     return headers, matrix_rows
 
 if __name__ == "__main__":
@@ -160,8 +195,8 @@ if __name__ == "__main__":
     # Example test grid: 2x2x1 with 2 1x2 pieces
     grid_size = (2, 2, 1)
     pieces = [
-        [(0,0,0), (1,0,0)],
-        [(0,0,0), (0,1,0)],
+        {"cells": [(0, 0, 0), (1, 0, 0)]},
+        {"cells": [(0, 0, 0), (0, 1, 0)]},
     ]
     headers, rows = generate_matrix_for_level(grid_size, pieces)
     print(f"Generated {len(rows)} possible placements for {len(pieces)} pieces.")

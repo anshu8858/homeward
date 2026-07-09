@@ -47,13 +47,65 @@ TArray<FIntVector> FGridModel::GetRotatedCells(const TArray<FIntVector>& LocalCe
 	return Rotated;
 }
 
+TArray<FIntVector> FGridModel::GetEffectiveCells(UPieceDef* PieceDef, int32 RotationState) const
+{
+	TArray<FIntVector> Effective = GetRotatedCells(PieceDef->Cells, RotationState);
+
+	if (PieceDef->bIsTall)
+	{
+		// Reserve the same footprint one layer up. Iterate over the original
+		// count only -- we're appending to the same array.
+		const int32 OwnCellCount = Effective.Num();
+		for (int32 i = 0; i < OwnCellCount; ++i)
+		{
+			FIntVector Reserved = Effective[i];
+			Reserved.Z += 1;
+			Effective.Add(Reserved);
+		}
+	}
+
+	return Effective;
+}
+
+int32 FGridModel::GetActiveLayer() const
+{
+	for (int32 z = 0; z < GridSize.Z; ++z)
+	{
+		if (!IsLayerComplete(z))
+		{
+			return z;
+		}
+	}
+	return GridSize.Z; // every layer full -> level complete, nothing more to place
+}
+
 bool FGridModel::CanPlacePiece(UPieceDef* PieceDef, const FIntVector& Origin, int32 RotationState) const
 {
 	if (!PieceDef) return false;
 
-	TArray<FIntVector> RotatedCells = GetRotatedCells(PieceDef->Cells, RotationState);
+	// Pieces are packed one horizontal layer at a time: a piece's own cells
+	// (as opposed to a Tall piece's reservation above them) must all land
+	// exactly on the active layer -- the lowest layer not yet complete.
+	const int32 ActiveLayer = GetActiveLayer();
+	if (ActiveLayer >= GridSize.Z) return false; // level already complete
 
-	for (const FIntVector& Cell : RotatedCells)
+	TArray<FIntVector> OwnCells = GetRotatedCells(PieceDef->Cells, RotationState);
+	for (const FIntVector& Cell : OwnCells)
+	{
+		if (Origin.Z + Cell.Z != ActiveLayer)
+		{
+			return false;
+		}
+	}
+
+	// Heavy pieces may only rest on the true bottom of the box; fragile
+	// pieces may only sit on the true top, since nothing may ever be placed
+	// above them. Both rules are naturally inert in a single-layer grid.
+	if (PieceDef->bIsHeavy && ActiveLayer != 0) return false;
+	if (PieceDef->bIsFragile && ActiveLayer != GridSize.Z - 1) return false;
+
+	TArray<FIntVector> EffectiveCells = GetEffectiveCells(PieceDef, RotationState);
+	for (const FIntVector& Cell : EffectiveCells)
 	{
 		FIntVector WorldPos = Origin + Cell;
 		if (!IsValidPosition(WorldPos))
@@ -72,9 +124,9 @@ void FGridModel::PlacePiece(UPieceDef* PieceDef, const FIntVector& Origin, int32
 {
 	if (!PieceDef) return;
 
-	TArray<FIntVector> RotatedCells = GetRotatedCells(PieceDef->Cells, RotationState);
+	TArray<FIntVector> EffectiveCells = GetEffectiveCells(PieceDef, RotationState);
 
-	for (const FIntVector& Cell : RotatedCells)
+	for (const FIntVector& Cell : EffectiveCells)
 	{
 		FIntVector WorldPos = Origin + Cell;
 		GridCells[GetCellIndex(WorldPos)] = true;
@@ -93,9 +145,9 @@ bool FGridModel::UndoLastMove()
 
 	FPlacedPiece LastPiece = PlacedHistory.Pop();
 
-	TArray<FIntVector> RotatedCells = GetRotatedCells(LastPiece.PieceDef->Cells, LastPiece.RotationState);
+	TArray<FIntVector> EffectiveCells = GetEffectiveCells(LastPiece.PieceDef, LastPiece.RotationState);
 
-	for (const FIntVector& Cell : RotatedCells)
+	for (const FIntVector& Cell : EffectiveCells)
 	{
 		FIntVector WorldPos = LastPiece.Origin + Cell;
 		GridCells[GetCellIndex(WorldPos)] = false;

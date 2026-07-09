@@ -20,4 +20,12 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Save Data")
 	TArray<FString> UnlockedKeepsakes;
+
+	// Memory-of-the-Day: consecutive days completed, and the date of the
+	// last completion (year-1 default = "never completed").
+	UPROPERTY(VisibleAnywhere, Category = "Save Data")
+	int32 DailyStreak;
+
+	UPROPERTY(VisibleAnywhere, Category = "Save Data")
+	FDateTime LastDailyCompletionDate;
 };

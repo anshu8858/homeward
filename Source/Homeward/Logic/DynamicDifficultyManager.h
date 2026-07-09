@@ -22,9 +22,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DDA")
 	bool ShouldShowHintShimmer(float CurrentTimeInLevel) const;
 
-	// Suggests if the next level load should use the "gentle" variant
+	// Suggests if the next level load should use the "gentle" variant.
+	// PreviousLevelParSeconds comes from the LevelDef that was just played.
 	UFUNCTION(BlueprintPure, Category = "DDA")
-	bool ShouldUseGentleVariant(int32 PreviousLevelAttempts, float PreviousLevelTime) const;
+	bool ShouldUseGentleVariant(int32 PreviousLevelAttempts, float PreviousLevelTime, float PreviousLevelParSeconds) const;
 
 private:
 	float CurrentHintThreshold; // Modulated between 45.0f and 15.0f

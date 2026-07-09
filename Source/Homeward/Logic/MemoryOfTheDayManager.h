@@ -20,12 +20,16 @@ public:
 	void RecordDailyCompletion();
 
 	UFUNCTION(BlueprintPure, Category = "Daily")
-	int32 GetCurrentStreak() const { return CurrentStreak; }
+	int32 GetCurrentStreak() const;
 
 private:
-	int32 CurrentStreak;
-	FDateTime LastCompletionDate;
-	
-	// Called on initialization to check for broken streaks (pause-not-break allowed?)
-	void EvaluateStreak();
+	// Pause-not-break: a streak only resets once more than this many days
+	// have passed since the last completion.
+	static constexpr int32 StreakGraceDays = 2;
+
+	// Breaks the streak in the save data if the grace window has elapsed.
+	// Called before every read/write below so the streak is never stale.
+	// Streak state lives in UHomewardSaveGame (via USaveManager), not here,
+	// so there is a single source of truth that actually gets persisted.
+	void EvaluateStreak() const;
 };

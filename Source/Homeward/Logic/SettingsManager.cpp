@@ -1,4 +1,16 @@
 #include "SettingsManager.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
+
+namespace
+{
+	const TCHAR* SettingsSection = TEXT("Homeward.Settings");
+
+	FString GetSettingsIniPath()
+	{
+		return FPaths::ProjectSavedDir() / TEXT("HomewardSettings.ini");
+	}
+}
 
 void USettingsManager::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -36,16 +48,25 @@ void USettingsManager::SetGentleHintsEnabled(bool bEnabled)
 
 void USettingsManager::SaveSettings()
 {
-	// Serialize to GConfig or SaveGame
+	const FString IniPath = GetSettingsIniPath();
+	GConfig->SetFloat(SettingsSection, TEXT("MusicVolume"), MusicVolume, IniPath);
+	GConfig->SetFloat(SettingsSection, TEXT("SFXVolume"), SFXVolume, IniPath);
+	GConfig->SetBool(SettingsSection, TEXT("HapticsEnabled"), bHapticsEnabled, IniPath);
+	GConfig->SetBool(SettingsSection, TEXT("GentleHintsEnabled"), bGentleHintsEnabled, IniPath);
+	GConfig->Flush(false, IniPath);
 }
 
 void USettingsManager::LoadSettings()
 {
-	// Defaults
+	// Defaults, overwritten below if a saved value exists.
 	MusicVolume = 1.0f;
 	SFXVolume = 1.0f;
 	bHapticsEnabled = true;
 	bGentleHintsEnabled = true;
-	
-	// Load from GConfig or SaveGame
+
+	const FString IniPath = GetSettingsIniPath();
+	GConfig->GetFloat(SettingsSection, TEXT("MusicVolume"), MusicVolume, IniPath);
+	GConfig->GetFloat(SettingsSection, TEXT("SFXVolume"), SFXVolume, IniPath);
+	GConfig->GetBool(SettingsSection, TEXT("HapticsEnabled"), bHapticsEnabled, IniPath);
+	GConfig->GetBool(SettingsSection, TEXT("GentleHintsEnabled"), bGentleHintsEnabled, IniPath);
 }

@@ -7,11 +7,11 @@ void UDynamicDifficultyManager::OnLevelStart()
 
 void UDynamicDifficultyManager::UpdateDDA(float TimeInLevel)
 {
-	// Gradually reduce the hint threshold as the player spends more time in the level without progress
-	// Honest DDA: never rigged, just adjusts hint timing
-	
-	// Example: reduce threshold by 1 second for every 10 seconds of inactivity
-	// (Actual implementation would track time since last successful move)
+	// Honest DDA: never rigged, just nudges hint timing earlier the longer a
+	// player goes without solving the level -- 1 second off the threshold
+	// for every 10 seconds spent in the level, floored at MinHintThreshold.
+	const float Decay = TimeInLevel / 10.0f;
+	CurrentHintThreshold = FMath::Max(BaseHintThreshold - Decay, MinHintThreshold);
 }
 
 bool UDynamicDifficultyManager::ShouldShowHintShimmer(float CurrentTimeInLevel) const
@@ -19,9 +19,13 @@ bool UDynamicDifficultyManager::ShouldShowHintShimmer(float CurrentTimeInLevel) 
 	return CurrentTimeInLevel >= CurrentHintThreshold;
 }
 
-bool UDynamicDifficultyManager::ShouldUseGentleVariant(int32 PreviousLevelAttempts, float PreviousLevelTime) const
+bool UDynamicDifficultyManager::ShouldUseGentleVariant(int32 PreviousLevelAttempts, float PreviousLevelTime, float PreviousLevelParSeconds) const
 {
-	// Gentle level variant is selected if the player struggled significantly on the previous level
-	// e.g., Multiple restarts or taking 3x the par time.
-	return PreviousLevelAttempts > 3 || PreviousLevelTime > 120.0f; // placeholder logic
+	// Gentle variant is selected if the player struggled significantly on
+	// the previous level: multiple restarts, or taking 3x the level's own
+	// par time (not a fixed constant -- a 20s level and a 90s level don't
+	// share a struggle threshold).
+	const bool bManyAttempts = PreviousLevelAttempts > 3;
+	const bool bFarOverPar = PreviousLevelParSeconds > 0.0f && PreviousLevelTime > PreviousLevelParSeconds * 3.0f;
+	return bManyAttempts || bFarOverPar;
 }

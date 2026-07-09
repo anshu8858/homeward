@@ -1,10 +1,13 @@
 #include "HomewardPlayerController.h"
+#include "Logic/DragController.h"
 
 AHomewardPlayerController::AHomewardPlayerController()
 {
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
 	bEnableTouchEvents = true;
+
+	DragController = CreateDefaultSubobject<UDragController>(TEXT("DragController"));
 }
 
 void AHomewardPlayerController::SetupInputComponent()
@@ -21,26 +24,24 @@ void AHomewardPlayerController::SetupInputComponent()
 
 void AHomewardPlayerController::OnTouchPressed(const ETouchIndex::Type FingerIndex, const FVector Location)
 {
-	bIsDragging = true;
-	LastTouchLocation = Location;
-	// Raycast to find the piece to drag, then delegate to UDragController
+	if (DragController)
+	{
+		DragController->OnTouchPressed(FVector2D(Location.X, Location.Y));
+	}
 }
 
 void AHomewardPlayerController::OnTouchReleased(const ETouchIndex::Type FingerIndex, const FVector Location)
 {
-	if (bIsDragging)
+	if (DragController)
 	{
-		// If duration was short and movement was minimal, trigger a Yaw Rotation.
-		// Otherwise, drop the piece onto the grid.
-		bIsDragging = false;
+		DragController->OnTouchReleased(FVector2D(Location.X, Location.Y));
 	}
 }
 
 void AHomewardPlayerController::OnTouchMoved(const ETouchIndex::Type FingerIndex, const FVector Location)
 {
-	if (bIsDragging)
+	if (DragController)
 	{
-		// Calculate delta and translate piece via UDragController
-		LastTouchLocation = Location;
+		DragController->OnTouchMoved(FVector2D(Location.X, Location.Y));
 	}
 }

@@ -88,8 +88,17 @@ Homeward/
 
 ~~Create basic Unreal Engine project structure (`.uproject`, `Source/`, `Target.cs`), generate Build files, and prepare headless build script.~~
 
-**Status Update:** The entire headless C++ architecture (M0 structure, M1 core logic/tests, M2 vignettes, M3 settings, M4 DDA/dailies) and offline validation scripts have been successfully implemented!
+**Status update (latest session):**
+- `FGridModel` now enforces the actual mechanics: active-layer packing order, Fragile (top layer only), Heavy (bottom layer only), Tall (reserves the cell above) -- previously it had zero placement rules.
+- `SettingsManager`, `DynamicDifficultyManager`, `MemoryOfTheDayManager` filled in (were no-op stubs; the daily-streak logic was dead code, never called, never persisted -- now lives in `UHomewardSaveGame` and is wired through `USaveManager`).
+- New `APiece` (in-world item) and `APackingBox` (owns `FGridModel`, grid<->world coordinate conversion) classes; `UDragController` actually does raycast/drag/tap-rotate/place now (was 100% comment stubs). Removed a duplicate, disconnected touch-input state that used to live on `AHomewardPlayerController` alongside `UDragController`'s own.
+- `AHomewardGameMode` now owns the level-flow glue: `StartLevel`/`OnLevelCompleted` connect `APackingBox::IsLevelComplete()` to DDA's gentle-variant check, chapter/level advancement (via `OnChapterCompleted`/`OnLevelAdvanceRequested` delegates), and Memory-of-the-Day completion recording. `AVignettePlayer::PlayVignette` now takes a `UChapterDef*` and can bind directly to `OnChapterCompleted`.
+- `scripts/generate_greybox_meshes.py`: 6 -> 28 meshes (all polyomino shapes + hero/story props + Tall props).
+- `scripts/dlx_solver.py`: fixed to model Fragile/Heavy/Tall exactly like `FGridModel::CanPlacePiece` (it used to validate a looser "tileable in any layer order" problem, not "placeable one layer at a time").
+- `scripts/level_data.py`: all 6 chapters / 28 levels authored, matching the solver's schema, with hand-verified tilings documented inline. **Not yet run through the solver** -- do that before trusting any of it, especially Chapter 5 (Attic), which combines Fragile+Heavy+Tall in single levels.
+- Test coverage added: `GridModelTests`, `PackingBoxTests`, `PieceTests` (all `Homeward.Logic.*` automation tests). `DragController` has none -- it needs a live World/PlayerController/camera to raycast against, so it's exercised on-device/in-PIE instead, per this doc's own Verification section.
+- **None of the above has been compiled.** See `AGENTS.md`/session notes for how to compile headlessly via the Docker UE image (`build_docker.sh`'s image, but running just `Build.sh HomewardEditor` first is faster than a full `BuildCookRun`).
 
 ## Next implementation step (GPU Phase)
 
-**Action Required:** Open `Homeward.uproject` in the Unreal Engine 5.8 Editor. You must now bind the C++ Subsystems and DataAssets to visual Blueprints, materials, and static meshes to begin grayboxing the Kitchen level (M2).
+**Action Required:** Open `Homeward.uproject` in the Unreal Engine 5.8 Editor. Bind the C++ Subsystems and DataAssets to visual Blueprints, materials, and static meshes to begin grayboxing the Kitchen level (M2) -- use `scripts/level_data.py` for the actual `LevelDef`/`PieceDef` content and `Content/Art/Greybox/*.obj` for placeholder meshes. Also still open regardless of GPU: run `dlx_solver.py` against `level_data.py`, and compile the module (see above) to catch anything wrong in the C++ from this session.

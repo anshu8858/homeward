@@ -29,6 +29,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flags")
 	bool bIsHeavy;
 
+	// Occupies its own cells on the active layer AND reserves the same
+	// footprint on the layer directly above (nothing else may be placed
+	// there; that layer counts the reservation as filled).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flags")
+	bool bIsTall;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flags")
 	bool bIsKeepsake;
 };

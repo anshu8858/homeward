@@ -1,10 +1,12 @@
 #include "VignettePlayer.h"
+#include "../Data/ChapterDef.h"
 
 AVignettePlayer::AVignettePlayer()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bIsPlaying = false;
 	PlaybackTime = 0.0f;
+	CurrentChapterDef = nullptr;
 }
 
 void AVignettePlayer::BeginPlay()
@@ -25,12 +27,18 @@ void AVignettePlayer::Tick(float DeltaTime)
 	}
 }
 
-void AVignettePlayer::PlayVignette(FName ChapterID)
+void AVignettePlayer::PlayVignette(UChapterDef* ChapterDef)
 {
+	CurrentChapterDef = ChapterDef;
 	bIsPlaying = true;
 	PlaybackTime = 0.0f;
-	
-	// Load level sequence and play it
+
+	// TODO (Editor-gated): load and play ChapterDef's LevelSequence asset
+	// once ChapterDef carries one (it doesn't yet -- see ChapterDef.h,
+	// which only has PaletteTexture/BackgroundMusic today) and vignette
+	// sequence assets exist to author. Until then this only tracks
+	// playback state/timing so SkipVignette and OnVignetteFinished behave
+	// correctly against a real timeline later.
 }
 
 void AVignettePlayer::SkipVignette()

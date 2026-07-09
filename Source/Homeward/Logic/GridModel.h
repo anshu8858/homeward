@@ -38,12 +38,17 @@ public:
 	// Checks if the level is completely filled
 	bool IsLevelComplete() const;
 
+	// The lowest layer that is not yet fully packed -- the only layer new
+	// pieces may be placed into. Returns GridSize.Z once every layer (and
+	// therefore the level) is complete.
+	int32 GetActiveLayer() const;
+
 	// Translates piece cells based on rotation (90 degree yaw increments)
 	static TArray<FIntVector> GetRotatedCells(const TArray<FIntVector>& LocalCells, int32 RotationState);
 
 private:
 	FIntVector GridSize;
-	
+
 	// 3D grid representation. True = filled, False = empty.
 	// Indexed by (z * GridSize.X * GridSize.Y) + (y * GridSize.X) + x
 	TArray<bool> GridCells;
@@ -52,4 +57,10 @@ private:
 
 	int32 GetCellIndex(const FIntVector& Position) const;
 	bool IsValidPosition(const FIntVector& Position) const;
+
+	// A piece's own (rotated) cells plus, for Tall pieces, the same
+	// footprint shifted one layer up -- the cells it reserves on the layer
+	// above. This is the single place that knows how a piece occupies the
+	// grid, so placement, collision, and undo all stay in sync.
+	TArray<FIntVector> GetEffectiveCells(UPieceDef* PieceDef, int32 RotationState) const;
 };
