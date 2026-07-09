@@ -11,7 +11,9 @@ bool FPieceRotationTest::RunTest(const FString& Parameters)
 
 	TestPiece->SetRotationState(1);
 	TestEqual(TEXT("RotationState should be 1"), TestPiece->RotationState, 1);
-	TestEqual(TEXT("Yaw should be 90 degrees"), TestPiece->GetActorRotation().Yaw, 90.0f);
+	// FRotator::Yaw is double in UE5; must compare against a double literal
+	// or TestEqual can't pick between its float/double overloads.
+	TestEqual(TEXT("Yaw should be 90 degrees"), TestPiece->GetActorRotation().Yaw, 90.0);
 
 	TestPiece->SetRotationState(4); // wraps to 0
 	TestEqual(TEXT("RotationState should wrap to 0"), TestPiece->RotationState, 0);

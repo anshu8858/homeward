@@ -56,9 +56,11 @@ bool FPackingBoxCoordinateTest::RunTest(const FString& Parameters)
 	Box->GridOriginWorld = FVector(500.0f, 200.0f, 0.0f);
 
 	const FVector WorldPos = Box->GridToWorld(FIntVector(2, 1, 0));
-	TestEqual(TEXT("GridToWorld X"), WorldPos.X, 500.0f + 250.0f);
-	TestEqual(TEXT("GridToWorld Y"), WorldPos.Y, 200.0f + 150.0f);
-	TestEqual(TEXT("GridToWorld Z"), WorldPos.Z, 50.0f);
+	// FVector components are double in UE5; these must be double literals
+	// too, or TestEqual can't pick between its float/double overloads.
+	TestEqual(TEXT("GridToWorld X"), WorldPos.X, 500.0 + 250.0);
+	TestEqual(TEXT("GridToWorld Y"), WorldPos.Y, 200.0 + 150.0);
+	TestEqual(TEXT("GridToWorld Z"), WorldPos.Z, 50.0);
 
 	int32 OutX, OutY;
 	TestTrue(TEXT("WorldToGridColumn should succeed"), Box->WorldToGridColumn(WorldPos, OutX, OutY));
