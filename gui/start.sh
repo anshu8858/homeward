@@ -38,8 +38,15 @@ vncserver "$DISPLAY" \
 sleep 3
 
 if [ -f "$UPROJECT_PATH" ]; then
-    echo "Launching UnrealEditor on $UPROJECT_PATH ..."
-    /home/ue4/UnrealEngine/Engine/Binaries/Linux/UnrealEditor "$UPROJECT_PATH" &
+    echo "Launching UnrealEditor on $UPROJECT_PATH (via vglrun -d egl) ..."
+    # Xvnc (KasmVNC's X server) is software-only and can't offer a
+    # GPU-capable window surface -- confirmed directly (vulkaninfo's
+    # window-creation probe against it fails with X_CreateWindow/BadMatch
+    # even though the GPU/driver/Vulkan ICD are all otherwise fully
+    # working). vglrun -d egl redirects the actual rendering to the real
+    # GPU via EGL (no second X server needed, unlike VirtualGL's classic
+    # setup) and reads the result back into this ($DISPLAY) X session.
+    vglrun -d egl /home/ue4/UnrealEngine/Engine/Binaries/Linux/UnrealEditor "$UPROJECT_PATH" &
 else
     echo "WARNING: $UPROJECT_PATH not found -- mount your project to /workspace." >&2
     echo "Desktop is still up; open a terminal in XFCE and launch the editor manually." >&2
