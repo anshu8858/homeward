@@ -26,17 +26,30 @@ BUILD_COMMAND="/home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCoo
 mkdir -p Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 chmod -R 777 Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 
-# Run as the host user's UID/GID, not whatever user the image defaults to
-# (commonly a baked-in "ue4" at uid 1000). Without this, every file the
-# container writes into the bind-mounted /project is owned by that
-# image-default UID; if it doesn't match the host user who owns the
-# mounted directory, every chmod/write UAT does during archiving fails
-# with "Operation not permitted" -- even though build/cook/stage (which
+# Run as the UID/GID that OWNS the project directory, not whoever invoked
+# this script. Using "$(id -u):$(id -g)" directly is wrong if this script
+# is run via sudo/as root (id would report 0:0, and Unreal's cook
+# commandlet hard-refuses to run as root: "Refusing to run with the root
+# privileges" -- it's a deliberate safety check, not a bug). The
+# directory owner is always the right, non-root UID to run as regardless
+# of how this script itself was invoked.
+RUN_UID_GID="$(stat -c '%u:%g' "$PROJECT_DIR")"
+if [ "${RUN_UID_GID%%:*}" = "0" ]; then
+    echo "Error: $PROJECT_DIR is owned by root. Unreal's cook step refuses to run as root."
+    echo "Fix ownership first, e.g.: sudo chown -R \$SUDO_USER:\$SUDO_USER \"$PROJECT_DIR\""
+    exit 1
+fi
+
+# Without matching this UID, every file the container writes into the
+# bind-mounted /project is owned by whatever UID the image defaults to
+# (commonly a baked-in "ue4" at 1000); if that doesn't match the host
+# owner, every chmod/write UAT does during archiving fails with
+# "Operation not permitted" -- even though build/cook/stage (which
 # happen entirely inside the container's own filesystem) succeed fine.
 docker run --rm -it \
   -v "${PROJECT_DIR}:/project" \
   -w "/project" \
-  --user "$(id -u):$(id -g)" \
+  --user "${RUN_UID_GID}" \
   "${UE_IMAGE}" \
   bash -c "${BUILD_COMMAND}"
 
