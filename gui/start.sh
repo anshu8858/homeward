@@ -22,19 +22,18 @@ echo " KasmVNC password: $VNC_PASSWORD"
 echo " (also settable up front via the VNC_PASSWORD env var)"
 echo "=================================================================="
 
-# -select-de skips the interactive desktop-environment prompt that
-# `vncserver` otherwise shows on first run (see gui/README.md). If your
-# KasmVNC version uses a different flag name, `vncserver --help` will
-# show the current one.
+# -select-de xfce skips the interactive desktop-environment prompt AND
+# makes vncserver's own generated ~/.vnc/xstartup script launch
+# xfce4-session itself -- do NOT also call startxfce4 here. Running both
+# races two independent xfce4-session instances for window-manager
+# ownership on the same display, which intermittently fails with
+# "Another Window Manager (unknown) is already running" / xfwm4 exiting
+# (found the hard way -- see git history on this file).
 vncserver "$DISPLAY" \
     -geometry "$VNC_GEOMETRY" \
     -depth 24 \
     -select-de xfce \
     -disableBasicAuth
-
-# Give the X server a moment before starting the desktop session.
-sleep 3
-startxfce4 &
 
 sleep 3
 

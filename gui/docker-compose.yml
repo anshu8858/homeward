@@ -17,7 +17,10 @@ services:
       #                              # to `docker compose logs` on startup
 
     ports:
-      - "6901:6901"   # KasmVNC's browser port
+      - "8444:8444"   # KasmVNC's browser port (confirm against the
+                       # "Paste this url in your browser" line in
+                       # `docker compose logs` -- vncserver prints its
+                       # actual listening port there on every start)
 
     volumes:
       # Mount the actual project root (one level up from this gui/ dir)
