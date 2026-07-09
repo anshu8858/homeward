@@ -22,22 +22,48 @@ BUILD_COMMAND="/home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCoo
   -serverconfig=Shipping -cook -allmaps -build -stage -pak -archive \
   -archivedirectory=\"/project/ArchivedBuilds\""
 
-# Pre-create build directories and ensure they are writable by the container's default non-root user (ue4)
+# Pre-create build directories and ensure they are writable regardless of
+# which UID ends up owning them below.
 mkdir -p Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 chmod -R 777 Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 
-# Run as the UID/GID that OWNS the project directory, not whoever invoked
-# this script. Using "$(id -u):$(id -g)" directly is wrong if this script
-# is run via sudo/as root (id would report 0:0, and Unreal's cook
-# commandlet hard-refuses to run as root: "Refusing to run with the root
-# privileges" -- it's a deliberate safety check, not a bug). The
-# directory owner is always the right, non-root UID to run as regardless
-# of how this script itself was invoked.
-RUN_UID_GID="$(stat -c '%u:%g' "$PROJECT_DIR")"
+# Unreal's cook commandlet hard-refuses to run as root ("Refusing to run
+# with the root privileges" -- a deliberate safety check). This must work
+# whether invoked as a normal user, via sudo, or as bare root, on any
+# machine, without manual chown steps -- so it self-heals rather than
+# erroring out:
+#   1. Not root already -> use our own UID/GID (already non-root, and
+#      already owns whatever it created).
+#   2. Root via `sudo` (SUDO_USER set) -> use that real user's UID/GID.
+#   3. Root some other way, but the project directory is already
+#      non-root-owned -> use that owner as-is.
+#   4. Root with a root-owned project directory (e.g. cloned as root) ->
+#      fall back to a fixed non-root UID/GID (1000:1000) and chown the
+#      directory to it. 1000 doesn't need to correspond to a real user on
+#      this host or in the image; Docker/Unreal only care that it isn't 0.
+if [ "$(id -u)" != "0" ]; then
+    RUN_UID_GID="$(id -u):$(id -g)"
+elif [ -n "${SUDO_USER:-}" ]; then
+    RUN_UID_GID="$(id -u "$SUDO_USER"):$(id -g "$SUDO_USER")"
+else
+    CURRENT_OWNER="$(stat -c '%u:%g' "$PROJECT_DIR")"
+    if [ "${CURRENT_OWNER%%:*}" != "0" ]; then
+        RUN_UID_GID="$CURRENT_OWNER"
+    else
+        RUN_UID_GID="1000:1000"
+    fi
+fi
+
 if [ "${RUN_UID_GID%%:*}" = "0" ]; then
-    echo "Error: $PROJECT_DIR is owned by root. Unreal's cook step refuses to run as root."
-    echo "Fix ownership first, e.g.: sudo chown -R \$SUDO_USER:\$SUDO_USER \"$PROJECT_DIR\""
+    # Should be unreachable given the logic above, but never hand Unreal a
+    # root UID -- fail loudly instead of letting cook fail obscurely.
+    echo "Error: could not determine a non-root UID/GID to run as."
     exit 1
+fi
+
+if [ "$(stat -c '%u:%g' "$PROJECT_DIR")" != "$RUN_UID_GID" ] && [ "$(id -u)" = "0" ]; then
+    echo "Fixing ownership of $PROJECT_DIR to $RUN_UID_GID..."
+    chown -R "$RUN_UID_GID" "$PROJECT_DIR"
 fi
 
 # Without matching this UID, every file the container writes into the
