@@ -1,0 +1,34 @@
+services:
+  unreal-gui:
+    build:
+      context: .
+      args:
+        UE_IMAGE: ghcr.io/epicgames/unreal-engine:dev-5.8
+    image: homeward-gui:dev-5.8
+
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      DISPLAY: ":1"
+      UPROJECT_PATH: /workspace/Homeward.uproject
+      # VNC_PASSWORD: set-your-own   # uncomment to pin it; otherwise a
+      #                              # random one is generated and printed
+      #                              # to `docker compose logs` on startup
+
+    ports:
+      - "6901:6901"   # KasmVNC's browser port
+
+    volumes:
+      # Mount the actual project root (one level up from this gui/ dir)
+      # into /workspace, matching UPROJECT_PATH above.
+      - ../:/workspace
+
+    shm_size: "16gb"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
