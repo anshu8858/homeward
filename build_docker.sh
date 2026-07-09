@@ -26,10 +26,17 @@ BUILD_COMMAND="/home/ue4/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildCoo
 mkdir -p Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 chmod -R 777 Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 
-# Run the docker container, mounting the local project into /project
+# Run as the host user's UID/GID, not whatever user the image defaults to
+# (commonly a baked-in "ue4" at uid 1000). Without this, every file the
+# container writes into the bind-mounted /project is owned by that
+# image-default UID; if it doesn't match the host user who owns the
+# mounted directory, every chmod/write UAT does during archiving fails
+# with "Operation not permitted" -- even though build/cook/stage (which
+# happen entirely inside the container's own filesystem) succeed fine.
 docker run --rm -it \
   -v "${PROJECT_DIR}:/project" \
   -w "/project" \
+  --user "$(id -u):$(id -g)" \
   "${UE_IMAGE}" \
   bash -c "${BUILD_COMMAND}"
 
