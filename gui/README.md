@@ -35,15 +35,12 @@ sudo chown -R "$UE4_UID_GID" .
 
 ```bash
 cd gui
-docker compose build
-docker compose up
+./run.sh
 ```
 
-Watch the logs for the generated KasmVNC password and the actual URL to use (`vncserver` prints its own real port on every start -- trust that over any port number written here):
+`run.sh` builds the image and runs it with a plain `docker run --gpus all` -- **use this, not `docker compose up`**: on real hardware, `docker-compose.yml`'s GPU device-reservation syntax was confirmed to not mount NVIDIA's GLX/Vulkan libraries into the container (Editor crashed with `VK_ERROR_INCOMPATIBLE_DRIVER`), while the exact same host's plain `docker run --gpus all` mounted them correctly. `docker-compose.yml` is kept only for `docker compose build` / as a config reference.
 
-```bash
-docker compose logs -f
-```
+Watch the logs for the generated KasmVNC password and the actual URL to use (`vncserver` prints its own real port on every start -- trust that over any port number written here). `run.sh` runs in the foreground, so the logs are just in your terminal; if you instead run it detached, use `docker logs -f <container>`.
 
 Look for lines like:
 ```
@@ -77,11 +74,11 @@ Symptom: `UnrealEditor` loads plugins/config for a while then dies with a `Vulka
    ```
    If missing, install the matching `libnvidia-gl-<version>[-server]` package for your driver's exact version series (e.g. `libnvidia-gl-570-server` for driver `570.x`) and restart Docker's GPU containers.
 
-2. **Confirm the toolkit is actually mounting them into a container**, in isolation from this project's `docker-compose.yml`:
+2. **Confirm the toolkit is actually mounting them into a container**, in isolation from Compose:
    ```bash
    docker run --rm --gpus all -e NVIDIA_DRIVER_CAPABILITIES=all ghcr.io/epicgames/unreal-engine:dev-5.8 \
      bash -c "ls -la /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0"
    ```
-   If this works but `docker compose up` still doesn't, your `docker compose` binary may be the legacy v1 (Python) implementation, which doesn't support the `deploy.resources.reservations.devices` GPU syntax outside Swarm mode (`docker compose version` -- v1 shows as `docker-compose version 1.x`, the modern plugin as `Docker Compose version v2.x`). If so, either upgrade to the Compose v2 plugin, or run this stack with plain `docker run --gpus all ...` instead of `docker compose up` until you do.
+   If this works, use `./run.sh` instead of `docker compose up` -- that's exactly the situation this project hit: `docker compose version` reported v2 (`v5.0.0`, not the legacy v1 that lacks GPU-reservation support outside Swarm), `/etc/nvidia-container-runtime/config.toml` had no capability restriction, and the plain `docker run --gpus all` above still worked while `docker compose up` with the same env vars did not. That's a Compose-vs-plain-run GPU request translation quirk on some host/toolkit combinations -- `run.sh` sidesteps it entirely by using the confirmed-working invocation.
 
-3. If both of the above check out but it still fails, it may be a **host-level policy restriction** on managed/shared GPU cloud instances (some providers lock containers to compute-only capabilities for isolation) -- check `/etc/nvidia-container-runtime/config.toml` for a `supported-driver-capabilities` override, and if present, that's a provider-side setting, not something fixable from this repo.
+3. If even the plain `docker run --gpus all` test above fails to find the library, check `/etc/nvidia-container-runtime/config.toml`'s `supported-driver-capabilities` line -- if it's missing `graphics`/`display`, that's a host-level policy restriction (common on managed/shared GPU cloud, some providers lock containers to compute-only for isolation) and not something fixable from this repo.
