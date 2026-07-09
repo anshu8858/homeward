@@ -12,6 +12,22 @@ VNC_PASSWORD="${VNC_PASSWORD:-$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)}"
 
 mkdir -p "$HOME/.vnc"
 
+# Disable KasmVNC's clipboard/DLP sync entirely. Its clipboard handling
+# (the "Adding DLP binary mime type..." lines in the logs) segfaults
+# Xvnc itself -- not just the app -- on a PRIMARY-selection request:
+# rfb::utf8ToLatin1 -> vncGetScreenImage -> crash, killing the whole X
+# server and therefore the entire desktop/session. Reproduced twice with
+# an identical stack trace. Write this BEFORE vncserver runs -- it only
+# generates a default kasmvnc.yaml if one doesn't already exist.
+cat > "$HOME/.vnc/kasmvnc.yaml" <<'EOF'
+data_loss_prevention:
+  clipboard:
+    server_to_client:
+      enabled: false
+    client_to_server:
+      enabled: false
+EOF
+
 # Non-interactive password setup. KasmVNC's exact vncpasswd flags have
 # shifted across releases -- if this errors on your image's KasmVNC
 # version, run `vncpasswd --help` inside the container and adjust.
