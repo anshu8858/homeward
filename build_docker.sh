@@ -28,50 +28,39 @@ mkdir -p Saved Intermediate Binaries Build DerivedDataCache Config Content/Devel
 chmod -R 777 Saved Intermediate Binaries Build DerivedDataCache Config Content/Developers ArchivedBuilds
 
 # Unreal's cook commandlet hard-refuses to run as root ("Refusing to run
-# with the root privileges" -- a deliberate safety check). This must work
-# whether invoked as a normal user, via sudo, or as bare root, on any
-# machine, without manual chown steps -- so it self-heals rather than
-# erroring out:
-#   1. Not root already -> use our own UID/GID (already non-root, and
-#      already owns whatever it created).
-#   2. Root via `sudo` (SUDO_USER set) -> use that real user's UID/GID.
-#   3. Root some other way, but the project directory is already
-#      non-root-owned -> use that owner as-is.
-#   4. Root with a root-owned project directory (e.g. cloned as root) ->
-#      fall back to a fixed non-root UID/GID (1000:1000) and chown the
-#      directory to it. 1000 doesn't need to correspond to a real user on
-#      this host or in the image; Docker/Unreal only care that it isn't 0.
-if [ "$(id -u)" != "0" ]; then
-    RUN_UID_GID="$(id -u):$(id -g)"
-elif [ -n "${SUDO_USER:-}" ]; then
-    RUN_UID_GID="$(id -u "$SUDO_USER"):$(id -g "$SUDO_USER")"
-else
-    CURRENT_OWNER="$(stat -c '%u:%g' "$PROJECT_DIR")"
-    if [ "${CURRENT_OWNER%%:*}" != "0" ]; then
-        RUN_UID_GID="$CURRENT_OWNER"
+# with the root privileges" -- a deliberate safety check), so this can't
+# just run as whoever invoked the script. But it also can't invent an
+# arbitrary non-root UID (e.g. a guessed 1000:1000): the image's own
+# baked-in engine binaries (RunUAT.sh etc, under /home/ue4/UnrealEngine)
+# are only readable/executable by their real owner, the "ue4" user inside
+# the image -- an unrelated UID that happens to not be 0 gets a plain
+# "Permission denied" trying to even run RunUAT.sh, before Unreal itself
+# is involved at all.
+#
+# So: ask the image what ue4's real UID/GID are, and make the mounted
+# project directory match that -- one correct UID for both problems
+# (executing the engine's own files, and writing into /project), instead
+# of guessing.
+UE4_ID_LINE="$(docker run --rm "${UE_IMAGE}" id ue4)"
+UE4_UID="$(echo "$UE4_ID_LINE" | sed -n 's/uid=\([0-9]*\).*/\1/p')"
+UE4_GID="$(echo "$UE4_ID_LINE" | sed -n 's/.*gid=\([0-9]*\).*/\1/p')"
+if [ -z "$UE4_UID" ] || [ -z "$UE4_GID" ]; then
+    echo "Error: could not determine the ue4 user's UID/GID from ${UE_IMAGE}."
+    echo "Got: $UE4_ID_LINE"
+    exit 1
+fi
+RUN_UID_GID="${UE4_UID}:${UE4_GID}"
+
+CURRENT_OWNER="$(stat -c '%u:%g' "$PROJECT_DIR")"
+if [ "$CURRENT_OWNER" != "$RUN_UID_GID" ]; then
+    echo "Fixing ownership of $PROJECT_DIR to match the image's ue4 user ($RUN_UID_GID)..."
+    if [ "$(id -u)" = "0" ]; then
+        chown -R "$RUN_UID_GID" "$PROJECT_DIR"
     else
-        RUN_UID_GID="1000:1000"
+        sudo chown -R "$RUN_UID_GID" "$PROJECT_DIR"
     fi
 fi
 
-if [ "${RUN_UID_GID%%:*}" = "0" ]; then
-    # Should be unreachable given the logic above, but never hand Unreal a
-    # root UID -- fail loudly instead of letting cook fail obscurely.
-    echo "Error: could not determine a non-root UID/GID to run as."
-    exit 1
-fi
-
-if [ "$(stat -c '%u:%g' "$PROJECT_DIR")" != "$RUN_UID_GID" ] && [ "$(id -u)" = "0" ]; then
-    echo "Fixing ownership of $PROJECT_DIR to $RUN_UID_GID..."
-    chown -R "$RUN_UID_GID" "$PROJECT_DIR"
-fi
-
-# Without matching this UID, every file the container writes into the
-# bind-mounted /project is owned by whatever UID the image defaults to
-# (commonly a baked-in "ue4" at 1000); if that doesn't match the host
-# owner, every chmod/write UAT does during archiving fails with
-# "Operation not permitted" -- even though build/cook/stage (which
-# happen entirely inside the container's own filesystem) succeed fine.
 docker run --rm -it \
   -v "${PROJECT_DIR}:/project" \
   -w "/project" \
